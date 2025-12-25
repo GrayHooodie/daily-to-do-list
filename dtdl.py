@@ -4,12 +4,17 @@ from datetime import datetime
 from time import sleep
 from os import system, path, makedirs, listdir, getlogin, rename, remove
 
+usr: str = getlogin()
+date: str = datetime.today().strftime('%Y-%m-%d')
 
-usr = getlogin()
-date = datetime.today().strftime('%Y-%m-%d')
-listfiles = f"/home/{usr}/Documents/To-Do Lists"
-progfiles = f"/home/{usr}/.todolist/programfiles"
-ext = ".todo"
+listfiles: str = f"/home/{usr}/Documents/To-Do Lists"
+progfiles: str = f"/home/{usr}/.todolist/programfiles"
+ext: str = ".todo"
+
+invalid_ln: str = "Please enter a valid line number."
+invalid_fn: str = "Please enter a valid file number."
+y_or_n: str = "Enter 'y' or 'n'."
+no_chng: str = "No changes made."
 
 # ==================== functions =====================
 
@@ -28,10 +33,10 @@ def list_items(todo: list[str]) -> None:
 			num += 1
 	else:
 		slowprint(" (Empty)")
-	slowprint('', '')
+	slowprint('')
 	return None
 
-def list_files(*function_header):
+def list_files(*function_header: str) -> list[str]:
 	open_file = read_open_file()
 	if len(open_file):
 		disp_open_file = f"\nCurrent File: {open_file[0]}"
@@ -50,6 +55,7 @@ def list_files(*function_header):
 		else:
 			slowprint(f" {num}. {files[i]}")
 		num += 1
+	slowprint('')	
 	return files
 
 def sort_items(todo: list[str]) -> list[str]:
@@ -62,139 +68,127 @@ def sort_items(todo: list[str]) -> list[str]:
 			uncrossed.append(item)
 	return uncrossed + crossed
 
-def cross(todo: list[str], line: int):
+def cross(todo: list[str], line: int) -> list[str]:
 	if ord(todo[line][1]) == 822:
 		todo[line] = unstrike(todo[line])
 	else:
 		todo[line] = strike(todo[line])
 	return todo
 
-def arrange_items_menu(todo):
+def enter_digit(base: int, length: int, text: list[str], enter_to_confirm: bool) -> int:
+	slowprint('', text[0], '')
+	while True:
+		num = input(" > ")
+		if num.isdigit():
+			num = int(num) - base
+			if num in range(length):
+				return num
+		elif num.lower() == 'c':
+			if len(text) == 3:
+				slowprint('', text[2], '')
+			return -2
+		elif enter_to_confirm and num == '':
+			return -1	
+		slowprint(text[1])
+		
+def confirm_edits(is_equal: bool, function: str) -> None:
+	if is_equal:
+		slowprint('', no_chng, '')
+	else:
+		slowprint('', f"Item(s) successfully {function}.", '')
+	return None
+			
+def arrange_items_menu(todo: list[str]) -> None:
 	system("clear")
 	slowprint("[arranging items]", "-----------------", '')
 	list_items(todo)
-	slowprint("Enter the line number you would like to move. Empty return to finish arranging items. 'c' to cancel.", '')
 	return None
 
-def arrange_items(todo):
+def arrange_items(todo: list[str]) -> list[str]:
 	unchanged = todo.copy()
 	arrange_items_menu(todo)
+	first_text = ["Enter the line number you would like to move. Empty return to finish arranging items. 'c' to cancel.", invalid_ln]
 	while True:
-		line = input(" > ")
-		if line.isdigit():
-			line = int(line) - 1
-			if line in range(len(todo)):
-				slowprint('', f"Enter the new position of line {line + 1}. Empty return to cancel line {line + 1} arrangement.", '')
-				while True:
-					dest = input(" > ")
-					if dest.isdigit():
-						dest = int(dest) - 1
-						if dest in range(len(todo)):
-							item = todo[line]
-							todo.remove(item)
-							todo.insert(dest, item)
-							arrange_items_menu(todo)
-							break
-						else:
-							slowprint("Please enter a valid line number.")
-					elif dest == '':
-						slowprint('', f"Cancelled arrangement of line {line + 1}", '')
-						sleep(1)
-						arrange_items_menu(todo)
-						break
-					else:
-						slowprint("Please enter a valid line number.")
-			else:
-				slowprint("Please enter a valid line number.")
-		elif line == 'c':
-			slowprint('', "No changes made.", '')
-			return unchanged
-		elif line == '':
-			if todo == unchanged:
-				slowprint('', "No changes made.", '')
-			else:
-				slowprint('', "Items successfully arranged.", '')
+		line = enter_digit(1, len(todo), first_text, True)
+		if line == -1:
+			confirm_edits(todo == unchanged, "arranged")
 			return todo
-		else:
-			slowprint("Please enter a valid line number.")
+		elif line == -2:
+			slowprint('', no_chng, '')
+			return unchanged
+		second_text = [f"Enter the new position of line {line + 1}. 'c' to cancel line {line + 1} arrangement.", invalid_ln, f"Cancelled arrangement of line {line + 1}."]
+		dest = enter_digit(1, len(todo), second_text, False)
+		if dest == -2:
+			sleep(1)
+			arrange_items_menu(todo)
+			continue
+		item = todo[line]
+		todo.remove(item)
+		todo.insert(dest, item)
+		arrange_items_menu(todo)
 
-def edit_items_menu(todo):
+def edit_items_menu(todo: list[str]) -> None:
 	system("clear")
 	slowprint("[editing items]", "---------------", '')
 	list_items(todo)
-	slowprint("Enter the line number you would like to edit. Empty return to finish editing items. 'c' to cancel.", '')
 	return None
 
-def edit_items(todo):
+def edit_items(todo: list[str]) -> list[str]:
 	unchanged = todo.copy()
 	edit_items_menu(todo)
+	first_text = ["Enter the line number you would like to edit. Empty return to finish editing items. 'c' to cancel.", invalid_ln]
 	while True:
-		line = input(" > ")
-		if line.isdigit():
-			line = int(line) - 1
-			if line in range(len(todo)):
-				slowprint('', f"Enter the new text for line {line + 1}. Empty return to cancel edits on line {line + 1}.", '')
-				while True:
-					edited = input(" > ")
-					if len(edited) > 1:
-						if edited.isdigit():
-							slowprint("Item can't be a number.")
-						else:
-							todo.remove(todo[line])
-							todo.insert(line, edited)
-							edit_items_menu(todo)
-							break
-					elif edited == "":
-						slowprint('', f"Cancelled edits on line {line + 1}", '')
-						sleep(1)
-						edit_items_menu(todo)
-						break
-					else:
-						slowprint("Item must be longer than one character.")
-			else:
-				slowprint("Please enter a valid line number.")
-		elif line == 'c':
-			slowprint('', "No changes made.", '')
-			return unchanged
-		elif line == '':
-			if todo == unchanged:
-				slowprint('', "No changes made.", '')
-			else:
-				slowprint('', "Items successfully edited.", '')
+		line = enter_digit(1, len(todo), first_text, True)
+		if line == -1:
+			confirm_edits(todo == unchanged, 'edited')
 			return todo
-		else:
-			slowprint("Please enter a valid line number.")
+		elif line == -2:
+			slowprint('', no_chng, '')
+			return unchanged
+		second_text = [f"Enter the new text for line {line + 1}. 'c' to cancel edits on line {line + 1}.", "Item can't be a number.", f"Cancelled edits on line {line + 1}", "Item must be two or more characters."]
+		edited = edit_item_text(2, second_text)
+		if edited == 'c':
+			sleep(1)
+			edit_items_menu(todo)	
+			continue
+		todo.remove(todo[line])
+		todo.insert(line, edited)
+		edit_items_menu(todo)
 
-def rm_items_menu(todo):
+def edit_item_text(minlength: int, text: list[str]) -> str:
+	slowprint('', text[0], '')
+	while True:
+		edited = input(" > ")
+		if edited.isdigit():
+			slowprint(text[1])
+			continue
+		elif len(edited) >= minlength:
+			return edited
+		elif edited.lower() == 'c':
+			slowprint('', text[2], '')
+			return edited
+		slowprint(text[3])
+
+def rm_items_menu(todo: list[str]) -> None:
 	system("clear")
 	slowprint("[removing items]", "----------------", '')
 	list_items(todo)
-	slowprint("Enter line number(s) to remove. Empty return to finish removing items. 'c' to cancel.", '')
 	return None
 
-def rm_items(todo):
+def rm_items(todo: list[str]) -> list[str]:
 	rm_items_menu(todo)
 	unchanged = todo.copy()
+	text = ["Enter line number(s) to remove. Empty return to finish removing items. 'c' to cancel.", invalid_ln]
 	while True:
-		line = input(" > ")
-		if line.isdigit():
-			line = int(line) - 1
-			if line in range(len(todo)):
-				todo.pop(line)
-				rm_items_menu(todo)
-			else:
-				slowprint("Please enter a valid line number.")
-		elif line == 'c':
-			slowprint('', "No changes made.", '')
-			return unchanged
-		elif line == '':
-			if todo == unchanged:
-				slowprint('', "No changes made.", '')
-			else:
-				slowprint('', "Line(s) deleted.", '')
+		line = enter_digit(1, len(todo), text, True)
+		if line == -1:
+			confirm_edits(todo == unchanged, "removed")	
 			return todo
-		else:
-			slowprint("Please enter a valid line number.")
+		elif line == -2:
+			slowprint('', no_chng, '')
+			return unchanged
+		todo.pop(line)
+		rm_items_menu(todo)
 
 def clear(todo):
 	slowprint('', "Are you sure you want to clear your to-do list? (y/N)", '')
@@ -202,40 +196,39 @@ def clear(todo):
 		check = input(" > ")
 		match check:
 			case 'y' | 'Y':
-				with open(f"{progfiles}/lastopen", 'w') as f:
-					pass
+				clear_open_file()
 				slowprint('', "To-do list cleared.", '')
 				return []
 			case 'n' | 'N' | '':
-				slowprint('', "Nothing changed.", '')
+				slowprint('', no_chng, '')
 				return todo 
 			case _:
-				slowprint("Enter 'y' or 'n'.")
+				slowprint(y_or_n)
 
-def prompt_save(todo):
+def prompt_save(todo) -> None:
 	slowprint('', "Would you like to save your current to-do list? (Y/n)", '')
 	while True:
 		will_save = input(" > ")
 		match will_save:
 			case 'n' | 'N':
-				return
+				return None
 			case 'y' | 'Y' | '':
 				save(todo)
 				sleep(1)
-				return
+				return None
 			case _:
-				slowprint("Enter 'y' or 'n'.")
+				slowprint(y_or_n)
 
 def save_menu():
 	system("clear")
 	open_file = read_open_file()
 	files = list_files("[saving file]", "-------------")
 	if len(open_file) and open_file[0] in files:
-		slowprint('', '', f"Name your file, or empty return to overwrite '{open_file[0]}'. 'c' to cancel.", '')
+		slowprint('', f"Name your file, or empty return to overwrite '{open_file[0]}'. 'c' to cancel.", '')
 	elif f"{date}.todo" not in files:
-		slowprint('', '', f"Name your file, or empty return to name the file '{date}'. 'c' to cancel.", '')
+		slowprint('', f"Name your file, or empty return to name the file '{date}'. 'c' to cancel.", '')
 	else:
-		slowprint('', '', "Name your file, or enter the corresponding number to overwrite a file. 'c' to cancel.", '')
+		slowprint('', "Name your file, or enter the corresponding number to overwrite a file. 'c' to cancel.", '')
 	return files
 
 def save(todo: list[str]) -> None:
@@ -250,7 +243,7 @@ def save(todo: list[str]) -> None:
 					file: str = files[file].split(ext)[0]
 					break
 			else:
-				slowprint("Enter a valid file number, or name your file.")
+				slowprint("Please enter a valid file number, or name your file.")
 		elif file == '':
 			if len(open_file):
 				file: str = open_file[0].split(ext)[0]
@@ -264,7 +257,7 @@ def save(todo: list[str]) -> None:
 			slowprint('', "Cancelled file save.", '')
 			return
 		elif f"{file}.todo" in files:
-			if overwrite_save(file):
+			if overwrite_save(f"{file}.todo"):
 				break
 		elif ext in file:
 			slowprint("Name can't contain '.todo'.")
@@ -313,8 +306,8 @@ def read_list_type(filename: str) -> str:
 	except Exception:
 		return ""
 
-def overwrite_save(file: str) -> bool:
-	slowprint('', f"'{file}.todo' already exists. Would you like to overwrite it? (y/N)", '')
+def overwrite_save(filename: str) -> bool:
+	slowprint('', f"'{filename}' already exists. Would you like to overwrite it? (y/N)", '')
 	while True:
 		will_overwrite = input(" > ")
 		match will_overwrite:
@@ -324,7 +317,7 @@ def overwrite_save(file: str) -> bool:
 			case 'y' | 'Y':
 				return True
 			case _:
-				slowprint("Enter 'y' or 'n'.")
+				slowprint(y_or_n)
 
 def autosave(todo: list[str]) -> None:
 	open_file = read_open_file()
@@ -351,7 +344,7 @@ def autosave(todo: list[str]) -> None:
 def load_menu() -> list[str]:
 	system("clear")
 	files = list_files("[loading file]", "--------------")
-	slowprint('', '', "Enter the number of file you would like to open. 'r' to rename a file. 'd' to delete a file. Empty return to cancel.", '')
+	slowprint('', "Enter the number of file you would like to open. 'r' to rename a file. 'd' to delete a file. Empty return to cancel.", '')
 	return files
 
 def load(unchanged: list[str]) -> list[str]:
@@ -384,7 +377,7 @@ def load(unchanged: list[str]) -> list[str]:
 				todo.pop()
 				break
 			else:
-				slowprint("Enter a valid file number.")
+				slowprint(invalid_fn)
 		elif select == '':
 			slowprint('', "No file loaded.", '')
 			return unchanged
@@ -395,7 +388,7 @@ def load(unchanged: list[str]) -> list[str]:
 			delete_load_file(files)
 			files = load_menu()
 		else:
-			slowprint("Enter a valid file number.")
+			slowprint(invalid_fn)
 	slowprint('', f"File {files[select]} successfully loaded.", '')
 	return todo
 
@@ -415,9 +408,7 @@ def empty_file_delete(filename: str) -> bool:
 						f.write("%c")
 				return False
 			case _:
-				slowprint("Enter 'y' or 'n'.")
-
-				
+				slowprint(y_or_n)
 
 def open_list(file: str) -> list[str]:
 	with open(f"{listfiles}/{file}", 'r') as f:
@@ -433,13 +424,13 @@ def rename_load_file(files: list[str]) -> None:
 				new_name(files, to_rename)
 				return None
 			else:
-				slowprint(f"'{to_rename}' is not a valid file number.")
+				slowprint(invalid_fn)
 		elif to_rename == '':
 			slowprint('', "Cancelled renaming.", '')
 			sleep(1)
 			return 
 		else:
-			slowprint("Please enter a valid file number.")
+			slowprint(invalid_ln)
 
 def new_name(files, to_rename) -> None:
 	slowprint('', f"Enter the new name of '{files[to_rename].split(ext)[0]}'. Empty return to cancel.", '')
@@ -473,13 +464,13 @@ def delete_load_file(files: list[str]) -> None:
 				confirm_delete(files, to_delete)
 				return None
 			else:
-				slowprint("Please enter a valid file number.")
+				slowprint(invalid_ln)
 		elif to_delete == '':
 			slowprint('', "Cancelled file deletion.", '')
 			sleep(1)
 			return None
 		else:
-			slowprint("Please enter a valid line number.")
+			slowprint()
 
 def confirm_delete(files: list[str], to_delete: int) -> None:
 	slowprint('', f"Are you sure you'd like to delete the file '{files[to_delete]}'? (y/N)", '')
@@ -498,7 +489,7 @@ def confirm_delete(files: list[str], to_delete: int) -> None:
 				remove(f"{listfiles}/{files[to_delete]}")
 				return None
 			case _:
-				slowprint("Enter 'y' or 'n'.")
+				slowprint(y_or_n)
 							
 def autoload() -> list[str]:
 	todo = []
@@ -537,8 +528,7 @@ def read_open_file() -> list[str]:
 
 def clear_open_file() -> None:
 	with open(f"{progfiles}/lastopen", 'w'):
-		pass
-	return None
+		return None
 
 def title() -> None:
 	system("clear")
@@ -570,7 +560,7 @@ def menu(todo: list[str], justopened: bool) -> None:
 	if justopened:
 		title()
 	list_items(todo)
-	slowprint("Add an item, or cross-off an item by entering its line number. 'h' for help.", '')
+	slowprint('', "Add an item, or cross-off an item by entering its line number. 'h' for help.", '')
 	return None
 
 # returning to the edit menu from another function
